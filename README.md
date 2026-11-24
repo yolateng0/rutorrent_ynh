@@ -10,7 +10,7 @@ It shall NOT be edited by hand.
 
 Web front-end for rTorrent
 
-[![Version: 5.3.16~ynh1](https://img.shields.io/badge/Version-5.3.16~ynh1-rgb(18,138,11)?style=for-the-badge)](https://ci-apps.yunohost.org/ci/apps/rutorrent/)
+[![Version: 5.3.25~ynh1](https://img.shields.io/badge/Version-5.3.25~ynh1-rgb(18,138,11)?style=for-the-badge)](https://ci-apps.yunohost.org/ci/apps/rutorrent/)
 
 <div align="center">
 <a href="https://apps.yunohost.org/app/rutorrent"><img height="100px" src="https://github.com/YunoHost/yunohost-artwork/raw/refs/heads/main/badges/neopossum-badges/badge_more_info_on_the_appstore.svg"/></a>
