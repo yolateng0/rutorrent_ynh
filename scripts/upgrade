@@ -1,52 +1,47 @@
 #!/bin/bash
 
-#stop rtorrent service
-sudo service rtorrent stop
+#=================================================
+# IMPORT GENERIC HELPERS
+#=================================================
 
-# Exit on command errors and treat unset variables as an error
-set -eu
+source /usr/share/yunohost/helpers
 
-# See comments in install script
-app=$YNH_APP_INSTANCE_NAME
+#=================================================
+# ENSURE DOWNWARD COMPATIBILITY
+#=================================================
+ynh_script_progression "Ensuring downward compatibility..."
 
-# Build libtorrent
-cd /tmp
-if [ -d libtorrent ]; then
-  sudo rm -r libtorrent
-fi
-sudo git clone https://github.com/rakshasa/libtorrent.git
-cd libtorrent
-sudo git checkout 0.13.6
-sudo ./autogen.sh
-sudo ./configure
-sudo make
-sudo make install
+ynh_app_setting_set_default --key=php_upload_max_filesize --value=50M
+ynh_app_setting_set_default --key=php_post_max_size --value=50M
 
-# Build rtorrent
-cd /tmp
-if [ -d rtorrent ]; then
-  sudo rm -r rtorrent
-fi
-sudo git clone https://github.com/rakshasa/rtorrent.git
-cd rtorrent
-sudo git checkout 0.9.6
-sudo ./autogen.sh
-sudo ./configure --with-xmlrpc-c
-sudo make
-sudo make install
+#=================================================
+# DOWNLOAD, CHECK AND UNPACK SOURCE
+#=================================================
+ynh_script_progression "Upgrading source files..."
 
-sudo ldconfig
+ynh_setup_source --dest_dir="$install_dir" --full_replace
 
-# Update ruTorrent
-cd /var/www/rutorrent
-sudo git pull
-sudo chown -R www-data:www-data /var/www/rutorrent
+#=================================================
+# UPDATE A CONFIG FILE
+#=================================================
+#ynh_script_progression "Updating $app's configuration files..."
 
-# If app is public, add url to SSOWat conf as skipped_uris
-if [[ $is_public -eq 1 ]]; then
-  # See install script
-  ynh_app_setting_set "$app" unprotected_uris "/"
-fi
+#ynh_config_add --template="some_config_file" --destination="$install_dir/some_config_file"
 
-# Reload nginx service
-sudo service rtorrent start
+#chmod 400 "$install_dir/some_config_file"
+#chown "$app:$app" "$install_dir/some_config_file"
+
+#=================================================
+# REAPPLY SYSTEM CONFIGURATION
+#=================================================
+ynh_script_progression "Upgrading system configurations related to $app..."
+
+ynh_config_add_phpfpm
+
+ynh_config_add_nginx
+
+#=================================================
+# END OF SCRIPT
+#=================================================
+
+ynh_script_progression "Upgrade of $app completed"

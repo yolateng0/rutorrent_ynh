@@ -1,27 +1,22 @@
 #!/bin/bash
-domain=$(sudo yunohost app setting rutorrent domain)
-data_dir=$(sudo yunohost app setting rutorrent data_dir)
 
-sudo service rtorrent stop
+#=================================================
+# IMPORT GENERIC HELPERS
+#=================================================
 
-sudo rm -rf /var/www/rutorrent
-sudo rm -rf $data_dir
-sudo rm -f /etc/nginx/conf.d/$domain.d/rutorrent.conf
-sudo rm -f /etc/init.d/rtorrent
-sudo rm -f /etc/init.d/libtorrent
+source /usr/share/yunohost/helpers
 
-# Remove the user
-sudo userdel -f rtorrent
-sudo rm -rf /home/rtorrent
+#=================================================
+# REMOVE SYSTEM CONFIGURATION
+#=================================================
+ynh_script_progression "Removing system configurations related to $app..."
 
-# Remove the service
-sudo yunohost service remove rtorrent
+ynh_config_remove_nginx
 
-# Remove the sources
-sudo rm -f /etc/apt/sources.list.d/rutorrent.list
+ynh_config_remove_phpfpm
 
-# Remove rtorrent
-sudo rm -rf /usr/local/bin/rtorrent
+#=================================================
+# END OF SCRIPT
+#=================================================
 
-sudo yunohost app ssowatconf
-sudo service nginx reload
+ynh_script_progression "Removal of $app completed"

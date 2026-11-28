@@ -1,153 +1,49 @@
 #!/bin/bash
 
-# Retrieve arguments
-domain=$1
-path=$2
-data_dir=$3
-passw=$4
-current_dir=${PWD}
-debian_version=$(lsb_release -c -s)
+#=================================================
+# IMPORT GENERIC HELPERS
+#=================================================
 
-# Source app helpers
 source /usr/share/yunohost/helpers
 
-# Check domain/path availability
-sudo yunohost app checkurl $domain$path -a rutorrent
-if [[ ! $? -eq 0 ]]; then
-  echo "Error: domain/path not available"
-  exit 1
-fi
+#=================================================
+# INITIALIZE AND STORE SETTINGS
+#=================================================
 
+ynh_app_setting_set --key=php_upload_max_filesize --value=50M
+ynh_app_setting_set --key=php_post_max_size --value=50M
 
-# Install source Rutorrent
-ynh_package_is_installed "rutorrent"
+#=================================================
+# DOWNLOAD, CHECK AND UNPACK SOURCE
+#=================================================
+ynh_script_progression "Setting up source files..."
 
-if ! ynh_package_is_installed "rutorrent" ; then
-  echo "Oups, le paquet n'est pas installé."
-else
-  echo "Le paquet est installé !"
-fi
+# Download, check integrity, uncompress and patch the source from manifest.toml
+ynh_setup_source --dest_dir="$install_dir"
 
-if [ "$debian_version" = "jessie" ]; then
-  cd /tmp
-  wget http://www.deb-multimedia.org/pool/main/d/deb-multimedia-keyring/deb-multimedia-keyring_2016.3.7_all.deb
-  sudo dpkg -i deb-multimedia-keyring_2016.3.7_all.deb
-  
-  if [ -f /etc/apt/sources.list.d/rutorrent.list ]; then
-    sudo rm /etc/apt/sources.list.d/rutorrent.list
-  fi
+#=================================================
+# APP INITIAL CONFIGURATION
+#=================================================
+#ynh_script_progression "Adding $app's configuration files..."
 
-  echo 'deb http://ftp2.fr.debian.org/debian/ jessie main non-free' | sudo tee -a /etc/apt/sources.list.d/rutorrent.list
-  echo 'deb-src http://ftp2.fr.debian.org/debian/ jessie main non-free' | sudo tee -a /etc/apt/sources.list.d/rutorrent.list
-else
-  echo 'deb ftp://ftp.deb-multimedia.org jessie main non-free' | sudo tee -a /etc/apt/sources.list.d/rutorrent.list
+#ynh_config_add --template="some_config_file" --destination="$install_dir/some_config_file"
 
-fi
+#chmod 400 "$install_dir/some_config_file"
+#chown "$app:$app" "$install_dir/some_config_file"
 
-# Install dependencies
-sudo apt-get update
-sudo apt-get install -y htop automake libcppunit-dev libtool build-essential pkg-config libssl-dev libcurl4-openssl-dev libsigc++-2.0-dev libncurses5-dev screen subversion apache2-utils php5-cli php5-geoip unzip unrar rar zip ffmpeg buildtorrent mediainfo
+#=================================================
+# SYSTEM CONFIGURATION
+#=================================================
+ynh_script_progression "Adding system configurations related to $app..."
 
-# Build xmlrpc
-cd /tmp
-sudo svn checkout http://svn.code.sf.net/p/xmlrpc-c/code/stable xmlrpc-c
-cd xmlrpc-c/
-sudo ./configure
-sudo make
-sudo make install
+# Create a PHP-FPM config (with conf/extra_php-fpm.conf being appended to it)
+ynh_config_add_phpfpm
 
-# Build libtorrent
-cd /tmp
-sudo git clone https://github.com/rakshasa/libtorrent.git
-cd libtorrent
-sudo git checkout 0.13.6
-sudo ./autogen.sh
-sudo ./configure
-sudo make
-sudo make install
+# Create a dedicated NGINX config using the conf/nginx.conf template
+ynh_config_add_nginx
 
-# Build rtorrent
-cd /tmp
-sudo git clone https://github.com/rakshasa/rtorrent.git
-cd rtorrent
-sudo git checkout 0.9.6
-sudo ./autogen.sh
-sudo ./configure --with-xmlrpc-c
-sudo make
-sudo make install
+#=================================================
+# END OF SCRIPT
+#=================================================
 
-sudo ldconfig
-
-# Install rutorrent
-sudo git clone https://github.com/Novik/ruTorrent.git /var/www/rutorrent
-
-# Install rutorrent plugins
-cd /var/www/rutorrent/plugins/
-
-sudo git clone https://github.com/xombiemp/rutorrentMobile.git mobile
-
-sudo svn checkout http://svn.rutorrent.org/svn/filemanager/trunk/filemanager
-
-# Configure plugins
-cd $current_dir
-
-sudo rm /var/www/rutorrent/plugins/create/conf.php
-sudo cp ../sources/plugins/create/conf.php /var/www/rutorrent/plugins/create/conf.php
-
-sudo rm /var/www/rutorrent/plugins/filemanager/conf.php
-sudo cp ../sources/plugins/filemanager/conf.php /var/www/rutorrent/plugins/filemanager/conf.php
-
-# Configure nginx
-sudo sed -i "s@PATHTOCHANGE@$path@g" ../sources/nginx/rutorrent.conf
-sudo cp ../sources/nginx/rutorrent.conf /etc/nginx/conf.d/$domain.d/rutorrent.conf
-
-# Create data dir
-sudo mkdir $data_dir
-sudo mkdir $data_dir/watch
-sudo mkdir $data_dir/downloads
-sudo mkdir $data_dir/.session
-
-# Create rtorrent user
-sudo useradd -p $(openssl passwd -1 $passw) -m rtorrent
-
-# Add rtorrent config
-sudo sed -i "s@DATA_DIR@$data_dir@g" ../sources/rtorrent/rtorrent.rc
-sudo cp ../sources/rtorrent/rtorrent.rc /home/rtorrent/.rtorrent.rc
-sudo chown -R rtorrent:www-data /home/rtorrent/.rtorrent.rc
-
-sudo chown -R rtorrent:www-data $data_dir
-sudo chmod 755 $data_dir
-
-# Configure rutorrent
-sudo sed -i "s@DATA_DIR@$data_dir@g" ../sources/rutorrent/config.php
-sudo cp ../sources/rutorrent/config.php /var/www/rutorrent/conf/config.php
-sudo chown -R www-data:www-data /var/www/rutorrent
-
-# Check port availability
-sudo yunohost app checkport 45069
-if [[ ! $? -eq 0 ]]; then
-  exit 1
-fi
-
-# Open port in firewall
-sudo yunohost firewall allow TCP 45069 > /dev/null 2>&1
-
-# Launch rtorrent on boot
-sudo cp ../sources/init/rtorrent /etc/init.d/rtorrent
-sudo chmod +x /etc/init.d/rtorrent
-sudo update-rc.d rtorrent defaults
-
-# Start rtorrent
-sudo service rtorrent start
-sudo yunohost app ssowatconf
-sudo service nginx reload
-
-# Save config
-sudo yunohost app setting rutorrent data_dir -v $data_dir
-sudo yunohost app setting rutorrent path -v $path
-
-
-
-
-# Register the service on yunohost
-sudo yunohost service add rtorrent
+ynh_script_progression "Installation of $app completed"

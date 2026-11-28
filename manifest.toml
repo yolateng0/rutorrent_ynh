@@ -1,0 +1,61 @@
+#:schema https://raw.githubusercontent.com/YunoHost/apps/main/schemas/manifest.v2.schema.json
+
+packaging_format = 2
+
+id = "rutorrent"
+name = "ruTorrent"
+description.en = "Web front-end for rTorrent"
+description.fr = "Interface web frontale pour rTorrent"
+
+version = "5.3.27~ynh1"
+
+maintainers = ["eric_G"]
+
+[upstream]
+license = "GPL-3.0-only"
+admindoc = "https://github.com/Novik/ruTorrent/wiki/WebSERVER"
+code = "https://github.com/Novik/ruTorrent"
+
+[integration]
+yunohost = ">= 12.1.40"
+helpers_version = "2.1"
+architectures = "all"
+multi_instance = true
+
+ldap = false
+sso = false
+
+disk = "10M"
+ram.build = "150M"
+ram.runtime = "50M"
+
+[install]
+    [install.domain]
+    type = "domain"
+
+    [install.init_main_permission]
+    type = "group"
+    default = "visitors"
+
+[resources]
+
+    [resources.sources]
+
+    [resources.sources.main]
+    url = "https://github.com/Novik/ruTorrent/archive/refs/tags/v5.3.27.tar.gz"
+    sha256 = "dc148b404adcc364ffafe5bc9812231b1ffee1667ced82754075886b56b02ea6"
+    autoupdate.strategy = "latest_github_tag"
+
+    [resources.system_user]
+
+    [resources.install_dir]
+    group = "www-data:r-x"
+
+    [resources.permissions]
+    main.url = "/"
+
+    [resources.ports]
+    main.default = 5000
+
+    [resources.apt]
+    packages = "php8.4-simplexml, php8.4-curl, php8.4-mbstring"
